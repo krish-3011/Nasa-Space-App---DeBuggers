@@ -82,13 +82,8 @@ script.onload = function () {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
 
-  // Variables to track clicked planet
-  let targetPlanet = null;
-  let isFollowing = false;
-  let followHeight = 50; // Height above the planet
-
   // Event listener for mouse click
-  document.addEventListener('click', (event) => {
+ document.addEventListener('click', (event) => {
     // Get the mouse position
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -104,56 +99,70 @@ script.onload = function () {
       const clickedPlanet = intersects[0].object;
 
       // Set the clicked planet as the target
-      targetPlanet = planets.find(p => p.planet === clickedPlanet);
-      isFollowing = true;
+      const targetPlanet = planets.find(p => p.planet === clickedPlanet);
 
-      // Zoom towards the planet with animation
-      const initialCameraPosition = camera.position.clone();
-      const targetPosition = clickedPlanet.position.clone();
-
-      // Move the camera above the planet
-      targetPosition.y += followHeight; // Move the camera to a fixed height above the planet
-
-      const animationDuration = 2000; // 2 seconds
-      let startTime = Date.now();
-
-      // Function to animate the zoom-in
-      function animateZoom() {
-        const currentTime = Date.now();
-        const progress = (currentTime - startTime) / animationDuration;
-        if (progress < 1) {
-          // Gradually move the camera to the target position
-          camera.position.lerpVectors(initialCameraPosition, targetPosition, progress);
-          requestAnimationFrame(animateZoom);
-        } else {
-          camera.position.copy(targetPosition);
-          controls.update();
-        }
-      }
-
-      animateZoom(); // Start zoom animation
+      // Display planet information
+      displayPlanetInfo(targetPlanet);
     }
   });
 
-  // Function to follow the planet after zooming in
-  function followPlanet() {
-    if (isFollowing && targetPlanet) {
-      const { planet, orbitSpeed, distanceFromSun } = targetPlanet;
+  // Function to display planet information
+  function displayPlanetInfo(planet) {
+    // Create a div to display planet information
+    const infoDiv = document.createElement('div');
+    infoDiv.style.position = 'absolute';
+    infoDiv.style.top = '50%';
+    infoDiv.style.left = '50%';
+    infoDiv.style.transform = 'translate(-50%, -50%)';
+    infoDiv.style.background = 'rgba(0, 0, 0, 0.8)';
+    infoDiv.style.padding = '20px';
+    infoDiv.style.borderRadius = '10px';
+    infoDiv.style.color = 'white';
+    infoDiv.style.zIndex = '1';
 
-      // Calculate the new position based on time
-      const time = Date.now() * orbitSpeed; // Scale the time to match the planet's orbit speed
-      const cameraHeight = followHeight; // Define the height above the planet
+    // Add planet information to the div
+    const planetName = getPlanetName(planet);
+    const planetRadius = planet.planet.geometry.parameters.radius;
+    const planetDistance = planet.distanceFromSun;
+    const planetOrbitSpeed = planet.orbitSpeed;
+    infoDiv.innerHTML = `
+      <h2>${planetName}</h2>
+      <p>Radius: ${planetRadius} km</p>
+      <p>Distance from Sun: ${planetDistance} km</p>
+      <p>Orbit Speed: ${planetOrbitSpeed} km/s</p>
+      <button id="close-button">Close</button>
+    `;
 
-      // Follow the planet's position
-      const planetX = distanceFromSun * Math.cos(time);
-      const planetZ = distanceFromSun * Math.sin(time);
+    // Add the div to the document body
+    document.body.appendChild(infoDiv);
 
-      // Update planet's position
-      planet.position.set(planetX, 0, planetZ);
+    // Add event listener to close button
+    document.getElementById('close-button').addEventListener('click', () => {
+      infoDiv.remove();
+    });
+  }
 
-      // Move the camera along with the planet and keep the height fixed
-      camera.position.set(planetX, cameraHeight, planetZ + 100); // Keep camera a bit behind the planet
-      camera.lookAt(planet.position); // Ensure the camera looks at the planet
+  // Function to get the planet name from the planet object
+  function getPlanetName(planet) {
+    switch (planet.planet.material.color.getHex()) {
+      case 0xaaaaaa:
+        return 'Mercury';
+      case 0xffaa00:
+        return 'Venus';
+      case 0x0000ff:
+        return 'Earth';
+      case 0xff0000:
+        return 'Mars';
+      case 0x884400:
+        return 'Jupiter';
+      case 0xffff00:
+        return 'Saturn';
+      case 0x00aaff:
+        return 'Uranus';
+      case 0x0000aa:
+        return 'Neptune';
+      default:
+        return 'Unknown Planet';
     }
   }
 
@@ -162,18 +171,13 @@ script.onload = function () {
     requestAnimationFrame(animate);
 
     // Rotate the planets around the Sun
-    planets.forEach(({ orbit, orbitSpeed }) => {
-      orbit.rotation.y += orbitSpeed;
+    planets.forEach((planet) => {
+      planet.orbit.rotation.y += planet.orbitSpeed;
     });
 
-    followPlanet(); // Follow the planet if necessary
-
-    // Update the camera controls
     controls.update();
-
-    // Render the scene
     renderer.render(scene, camera);
   }
 
-  animate(); // Start the animation loop
+  animate();
 };
